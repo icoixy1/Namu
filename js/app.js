@@ -75,7 +75,7 @@ async function fetchRemoteAccounts() {
             const data = doc.data();
             accounts.push({
                 username: doc.id,
-                password: data.password || '',
+                password: String(data.password || '').trim(),
                 role: data.role || 'staff',
                 displayName: data.displayName || doc.id,
                 online: Boolean(data.online),
@@ -97,7 +97,7 @@ async function saveAccountsToFirestore(accounts) {
         accounts.forEach(account => {
             const docRef = accountsCollection.doc(account.username);
             batch.set(docRef, {
-                password: account.password,
+                password: String(account.password || '').trim(),
                 role: account.role,
                 displayName: account.displayName,
                 online: Boolean(account.online),
@@ -121,7 +121,7 @@ function subscribeAccountsRealtime() {
                     const data = doc.data() || {};
                     accounts.push({
                         username: doc.id,
-                        password: data.password || '',
+                        password: String(data.password || '').trim(),
                         role: data.role || 'staff',
                         displayName: data.displayName || doc.id,
                         online: Boolean(data.online),
@@ -399,8 +399,8 @@ function setLoginMessage(message, type = 'error') {
 function handleLogin(username, password) {
     const accounts = loadAccounts();
     const matched = findAccount(username, accounts);
-    const normalizedPassword = String(password || '');
-    if (!matched || matched.password !== normalizedPassword) {
+    const normalizedPassword = String(password || '').trim();
+    if (!matched || String(matched.password || '').trim() !== normalizedPassword) {
         setLoginMessage('Username atau password salah.', 'error');
         return false;
     }
@@ -509,9 +509,9 @@ function setupAuthHandlers() {
                 return;
             }
             const originalUsername = document.getElementById('account-original-username')?.value;
-            const username = document.getElementById('account-username')?.value.trim();
-            const password = document.getElementById('account-password')?.value;
-            const displayName = document.getElementById('account-display-name')?.value.trim() || username;
+            const username = String(document.getElementById('account-username')?.value || '').trim();
+            const password = String(document.getElementById('account-password')?.value || '').trim();
+            const displayName = String(document.getElementById('account-display-name')?.value || '').trim() || username;
             const role = document.getElementById('account-role')?.value;
             if (!username || !password || !role) return;
             const accounts = loadAccounts();
