@@ -27,8 +27,79 @@ function parseRoleLabel(role) {
 
 const SESSION_TIMEOUT_MS = 20 * 60 * 1000;
 
+const firebaseConfig = {
+  apiKey: "AIzaSyCrLEE8sWhawry7YN2kLwXC89e-nsEww5U",
+  authDomain: "namu-7ed6f.firebaseapp.com",
+  databaseURL: "https://namu-7ed6f-default-rtdb.firebaseio.com",
+  projectId: "namu-7ed6f",
+  storageBucket: "namu-7ed6f.firebasestorage.app",
+  messagingSenderId: "652382598946",
+  appId: "1:652382598946:web:a434c2c9d201914d77177b",
+  measurementId: "G-MJ0W51M7DQ"
+};
+
+let firebaseDb = null;
+let firebaseEnabled = false;
+
+function initFirebase() {
+    if (!window.firebase || !firebaseConfig.projectId) return false;
+    if (!window.firebase.apps || window.firebase.apps.length === 0) {
+        window.firebase.initializeApp(firebaseConfig);
+    }
+    firebaseDb = window.firebase.firestore();
+    firebaseEnabled = true;
+    return true;
+}
+
+async function fetchRemoteAccounts() {
+    if (!firebaseEnabled || !firebaseDb) return null;
+    try {
+        const snapshot = await firebaseDb.collection('accounts').get();
+        const accounts = [];
+        snapshot.forEach(doc => {
+            const data = doc.data();
+            accounts.push({
+                username: doc.id,
+                password: data.password || '',
+                role: data.role || 'staff',
+                displayName: data.displayName || doc.id,
+                online: Boolean(data.online),
+                lastSeen: data.lastSeen || null
+            });
+        });
+        return accounts;
+    } catch (err) {
+        console.warn('Gagal mengambil akun dari Firebase:', err);
+        return null;
+    }
+}
+
+async function saveAccountsToFirestore(accounts) {
+    if (!firebaseEnabled || !firebaseDb) return;
+    try {
+        const batch = firebaseDb.batch();
+        const accountsCollection = firebaseDb.collection('accounts');
+        accounts.forEach(account => {
+            const docRef = accountsCollection.doc(account.username);
+            batch.set(docRef, {
+                password: account.password,
+                role: account.role,
+                displayName: account.displayName,
+                online: Boolean(account.online),
+                lastSeen: account.lastSeen || null
+            });
+        });
+        await batch.commit();
+    } catch (err) {
+        console.warn('Gagal menyimpan akun ke Firebase:', err);
+    }
+}
+
 function saveAccounts(accounts) {
     localStorage.setItem('pos_accounts', JSON.stringify(accounts));
+    if (firebaseEnabled) {
+        saveAccountsToFirestore(accounts);
+    }
 }
 
 const LEGACY_ACCOUNT_ALIASES = {
@@ -72,6 +143,14 @@ function loadAccounts() {
     ];
     saveAccounts(defaultAccounts);
     return defaultAccounts;
+}
+
+async function syncRemoteAccountsToLocal() {
+    if (!firebaseEnabled) return;
+    const remoteAccounts = await fetchRemoteAccounts();
+    if (Array.isArray(remoteAccounts) && remoteAccounts.length > 0) {
+        saveAccounts(remoteAccounts);
+    }
 }
 
 function getCurrentUser() {
@@ -228,8 +307,12 @@ function logout() {
 }
 
 function findAccount(username, accounts) {
-    return accounts.find(acc => acc.username === username)
-        || accounts.find(acc => acc.username === LEGACY_ACCOUNT_ALIASES[username]);
+    const normalizedUsername = String(username || '').trim().toLowerCase();
+    if (!normalizedUsername) return null;
+    const match = accounts.find(acc => String(acc.username || '').trim().toLowerCase() === normalizedUsername);
+    if (match) return match;
+    const legacyAlias = LEGACY_ACCOUNT_ALIASES[normalizedUsername];
+    return accounts.find(acc => String(acc.username || '').trim().toLowerCase() === String(legacyAlias || '').trim().toLowerCase()) || null;
 }
 
 function setLoginMessage(message, type = 'error') {
@@ -244,7 +327,8 @@ function setLoginMessage(message, type = 'error') {
 function handleLogin(username, password) {
     const accounts = loadAccounts();
     const matched = findAccount(username, accounts);
-    if (!matched || matched.password !== password) {
+    const normalizedPassword = String(password || '');
+    if (!matched || matched.password !== normalizedPassword) {
         setLoginMessage('Username atau password salah.', 'error');
         return false;
     }
