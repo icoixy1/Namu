@@ -342,19 +342,23 @@ function setupAuthHandlers() {
             const role = document.getElementById('account-role')?.value;
             if (!username || !password || !role) return;
             const accounts = loadAccounts();
-            let exists = accounts.find(acc => acc.username === username);
-            if (originalUsername && originalUsername !== username) {
-                accounts.forEach((acc, index) => {
-                    if (acc.username === originalUsername) {
-                        accounts.splice(index, 1);
-                    }
-                });
-                exists = accounts.find(acc => acc.username === username);
+            const target = originalUsername ? accounts.find(acc => acc.username === originalUsername) : null;
+            const duplicate = accounts.find(acc => acc.username === username);
+
+            if (originalUsername && originalUsername !== username && duplicate && duplicate !== target) {
+                alert('Username baru sudah digunakan. Silakan pilih username lain.');
+                return;
             }
-            if (exists) {
-                exists.password = password;
-                exists.role = role;
-                exists.displayName = displayName;
+
+            if (target) {
+                target.username = username;
+                target.password = password;
+                target.role = role;
+                target.displayName = displayName;
+            } else if (duplicate) {
+                duplicate.password = password;
+                duplicate.role = role;
+                duplicate.displayName = displayName;
             } else {
                 accounts.push({ username, password, role, displayName });
             }
