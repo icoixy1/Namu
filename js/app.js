@@ -166,12 +166,35 @@ async function pushLocalAccountsToFirestore() {
 // Expose helpers for quick testing in console
 window.initFirebaseApp = initFirebase;
 window.pushLocalAccountsToFirestore = pushLocalAccountsToFirestore;
+window.checkFirebaseStatus = function() {
+    let localAccounts = null;
+    try {
+        localAccounts = JSON.parse(localStorage.getItem('pos_accounts') || '[]');
+    } catch (e) {
+        localAccounts = null;
+    }
+    return {
+        firebaseEnabled,
+        projectId: firebaseConfig?.projectId || null,
+        hasFirestore: !!firebaseDb,
+        localAccountsCount: Array.isArray(localAccounts) ? localAccounts.length : 0,
+        localAccounts
+    };
+};
+window.forceSyncAccounts = async function() {
+    initFirebase();
+    await syncRemoteAccountsToLocal();
+    await pushLocalAccountsToFirestore();
+    return window.checkFirebaseStatus();
+};
 
 function saveAccounts(accounts) {
     localStorage.setItem('pos_accounts', JSON.stringify(accounts));
-    if (firebaseEnabled) {
-        saveAccountsToFirestore(accounts);
+    if (!firebaseEnabled) {
+        console.log('Akun disimpan ke localStorage; Firebase belum aktif, jadi belum disinkronkan ke Firestore.');
+        return;
     }
+    saveAccountsToFirestore(accounts);
 }
 
 const LEGACY_ACCOUNT_ALIASES = {
