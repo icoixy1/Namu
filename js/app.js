@@ -42,13 +42,27 @@ let firebaseDb = null;
 let firebaseEnabled = false;
 
 function initFirebase() {
-    if (!window.firebase || !firebaseConfig.projectId) return false;
-    if (!window.firebase.apps || window.firebase.apps.length === 0) {
-        window.firebase.initializeApp(firebaseConfig);
+    try {
+        if (!window.firebase) {
+            console.warn('Firebase SDK tidak ditemukan. Pastikan script Firebase dimuat di index.html');
+            return false;
+        }
+        if (!firebaseConfig || !firebaseConfig.projectId) {
+            console.warn('firebaseConfig belum diisi di js/app.js');
+            return false;
+        }
+        if (!window.firebase.apps || window.firebase.apps.length === 0) {
+            window.firebase.initializeApp(firebaseConfig);
+        }
+        firebaseDb = window.firebase.firestore();
+        firebaseEnabled = true;
+        console.log('Firebase inisialisasi berhasil. Firestore siap.');
+        return true;
+    } catch (err) {
+        console.error('Gagal inisialisasi Firebase:', err);
+        firebaseEnabled = false;
+        return false;
     }
-    firebaseDb = window.firebase.firestore();
-    firebaseEnabled = true;
-    return true;
 }
 
 async function fetchRemoteAccounts() {
@@ -94,6 +108,34 @@ async function saveAccountsToFirestore(accounts) {
         console.warn('Gagal menyimpan akun ke Firebase:', err);
     }
 }
+
+// Helper: push semua akun lokal ke Firestore (panggil dari console di browser)
+async function pushLocalAccountsToFirestore() {
+    if (!firebaseEnabled) {
+        console.warn('Firebase belum terinisialisasi. Panggil initFirebase() atau muat ulang halaman.');
+        return;
+    }
+    const stored = localStorage.getItem('pos_accounts');
+    if (!stored) {
+        console.warn('Tidak ada data pos_accounts di localStorage.');
+        return;
+    }
+    try {
+        const accounts = JSON.parse(stored);
+        if (!Array.isArray(accounts) || accounts.length === 0) {
+            console.warn('pos_accounts kosong atau bukan array.');
+            return;
+        }
+        await saveAccountsToFirestore(accounts);
+        console.log('Akun lokal berhasil dipush ke Firestore.');
+    } catch (err) {
+        console.error('Gagal mempush akun lokal ke Firestore:', err);
+    }
+}
+
+// Expose helpers for quick testing in console
+window.initFirebaseApp = initFirebase;
+window.pushLocalAccountsToFirestore = pushLocalAccountsToFirestore;
 
 function saveAccounts(accounts) {
     localStorage.setItem('pos_accounts', JSON.stringify(accounts));
