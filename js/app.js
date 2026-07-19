@@ -44,7 +44,7 @@ let accountsUnsubscribe = null;
 
 function initFirebase() {
     try {
-        if (!window.firebase) {
+        if (!window. firebase) {
             console.warn('Firebase SDK tidak ditemukan. Pastikan script Firebase dimuat di index.html');
             return false;
         }
@@ -261,6 +261,22 @@ async function syncRemoteAccountsToLocal() {
     }
     console.log('Tidak ada akun Firestore yang ditemukan saat sinkronisasi.');
     return null;
+}
+
+async function synchronizeAccounts() {
+    if (!firebaseEnabled) {
+        throw new Error('Firebase belum terinisialisasi.');
+    }
+    const remoteAccounts = await fetchRemoteAccounts();
+    if (Array.isArray(remoteAccounts) && remoteAccounts.length > 0) {
+        saveAccountsLocally(remoteAccounts);
+        console.log('Sinkronisasi: akun diambil dari Firestore.');
+        return { source: 'firestore', accounts: remoteAccounts };
+    }
+    const localAccounts = loadAccounts();
+    await saveAccountsToFirestore(localAccounts);
+    console.log('Sinkronisasi: Firestore kosong, akun lokal dipush ke Firestore.');
+    return { source: 'local', accounts: localAccounts };
 }
 
 function getCurrentUser() {
@@ -531,8 +547,12 @@ function setupAuthHandlers() {
                 return;
             }
             try {
-                await pushLocalAccountsToFirestore();
-                alert('Sinkronisasi akun dipicu. Cek Firebase Console untuk hasil.');
+                const result = await synchronizeAccounts();
+                if (result.source === 'firestore') {
+                    alert('Sinkronisasi selesai: data akun terbaru diambil dari Firestore.');
+                } else {
+                    alert('Sinkronisasi selesai: data lokal dipush ke Firestore karena Firestore kosong.');
+                }
             } catch (err) {
                 console.error(err);
                 alert('Gagal melakukan sinkronisasi. Lihat console untuk detail.');
