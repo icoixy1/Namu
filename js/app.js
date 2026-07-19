@@ -359,6 +359,19 @@ function applyAccessPermissions() {
         manageBtn.classList.toggle('hidden', !canManageAccounts(role));
     }
 
+    const firebaseStatusEl = document.getElementById('firebase-status');
+    if (firebaseStatusEl) {
+        if (firebaseEnabled && firebaseDb) {
+            firebaseStatusEl.textContent = 'Terhubung';
+            firebaseStatusEl.classList.remove('bg-slate-200', 'text-slate-700');
+            firebaseStatusEl.classList.add('bg-emerald-100', 'text-emerald-700');
+        } else {
+            firebaseStatusEl.textContent = 'Tidak terhubung';
+            firebaseStatusEl.classList.remove('bg-emerald-100', 'text-emerald-700');
+            firebaseStatusEl.classList.add('bg-slate-200', 'text-slate-700');
+        }
+    }
+
     if (adminPanel) {
         adminPanel.classList.toggle('hidden', !canManageAccounts(role));
     }
