@@ -194,10 +194,16 @@ window.forceSyncAccounts = async function() {
     return window.checkFirebaseStatus();
 };
 
-function saveAccounts(accounts) {
+function saveAccountsLocally(accounts) {
     localStorage.setItem('pos_accounts', JSON.stringify(accounts));
-    if (!firebaseEnabled) {
-        console.log('Akun disimpan ke localStorage; Firebase belum aktif, jadi belum disinkronkan ke Firestore.');
+}
+
+function saveAccounts(accounts, options = { syncToFirebase: true }) {
+    saveAccountsLocally(accounts);
+    if (!firebaseEnabled || !options.syncToFirebase) {
+        if (!firebaseEnabled) {
+            console.log('Akun disimpan ke localStorage cache; Firebase belum aktif atau sinkronisasi dimatikan.');
+        }
         return;
     }
     saveAccountsToFirestore(accounts);
@@ -250,8 +256,10 @@ async function syncRemoteAccountsToLocal() {
     if (!firebaseEnabled) return;
     const remoteAccounts = await fetchRemoteAccounts();
     if (Array.isArray(remoteAccounts) && remoteAccounts.length > 0) {
-        saveAccounts(remoteAccounts);
+        saveAccountsLocally(remoteAccounts);
+        return remoteAccounts;
     }
+    return null;
 }
 
 function getCurrentUser() {
