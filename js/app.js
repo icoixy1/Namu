@@ -44,7 +44,7 @@ let accountsUnsubscribe = null;
 
 function initFirebase() {
     try {
-        if (!window. firebase) {
+        if (!window.firebase) {
             console.warn('Firebase SDK tidak ditemukan. Pastikan script Firebase dimuat di index.html');
             return false;
         }
@@ -96,10 +96,19 @@ async function saveAccountsToFirestore(accounts) {
         return;
     }
     try {
-        const batch = firebaseDb.batch();
         const accountsCollection = firebaseDb.collection('accounts');
+        const remoteSnapshot = await accountsCollection.get();
+        const remoteUsernames = new Set();
+        remoteSnapshot.forEach(doc => remoteUsernames.add(doc.id));
+
+        const batch = firebaseDb.batch();
+        const currentUsernames = new Set();
+
         accounts.forEach(account => {
-            const docRef = accountsCollection.doc(account.username);
+            const username = String(account.username || '').trim();
+            if (!username) return;
+            currentUsernames.add(username);
+            const docRef = accountsCollection.doc(username);
             batch.set(docRef, {
                 password: String(account.password || '').trim(),
                 role: account.role,
@@ -108,10 +117,19 @@ async function saveAccountsToFirestore(accounts) {
                 lastSeen: account.lastSeen || null
             });
         });
+
+        remoteUsernames.forEach(remoteUsername => {
+            if (!currentUsernames.has(remoteUsername)) {
+                const deleteRef = accountsCollection.doc(remoteUsername);
+                batch.delete(deleteRef);
+            }
+        });
+
         await batch.commit();
         console.log(`Firebase saveAccountsToFirestore: ${accounts.length} akun berhasil disimpan.`);
     } catch (err) {
         console.warn('Gagal menyimpan akun ke Firebase:', err);
+        throw err;
     }
 }
 
@@ -198,7 +216,7 @@ function saveAccountsLocally(accounts) {
     localStorage.setItem('pos_accounts', JSON.stringify(accounts));
 }
 
-function saveAccounts(accounts, options = { syncToFirebase: true }) {
+async function saveAccounts(accounts, options = { syncToFirebase: true }) {
     saveAccountsLocally(accounts);
     if (!firebaseEnabled || !options.syncToFirebase) {
         if (!firebaseEnabled) {
@@ -206,7 +224,7 @@ function saveAccounts(accounts, options = { syncToFirebase: true }) {
         }
         return;
     }
-    saveAccountsToFirestore(accounts);
+    await saveAccountsToFirestore(accounts);
 }
 
 const LEGACY_ACCOUNT_ALIASES = {
@@ -231,7 +249,7 @@ function migrateLegacyAccounts(accounts) {
     return accounts;
 }
 
-function loadAccounts() {
+async function loadAccounts() {
     const stored = localStorage.getItem('pos_accounts');
     if (stored) {
         try {
@@ -248,7 +266,12 @@ function loadAccounts() {
         { username: 'owner', password: 'owner123', role: 'owner', displayName: 'Owner' },
         { username: 'admin', password: 'admin123', role: 'owner_admin', displayName: 'Admin' }
     ];
-    saveAccounts(defaultAccounts);
+    saveAccountsLocally(defaultAccounts);
+    if (firebaseEnabled && firebaseDb) {
+        saveAccounts(defaultAccounts).catch(err => {
+            console.warn('Gagal menyimpan akun default ke Firestore:', err);
+        });
+    }
     return defaultAccounts;
 }
 
@@ -529,7 +552,11 @@ function setupAuthHandlers() {
             const password = document.getElementById('login-password')?.value;
             if (firebaseEnabled && firebaseDb) {
                 console.log('Firebase aktif, memuat akun terbaru dari Firestore sebelum login.');
-                await syncRemoteAccountsToLocal();
+                try {
+                    await synchronizeAccounts();
+                } catch (err) {
+                    console.warn('Sinkronisasi sebelum login gagal:', err);
+                }
             }
             handleLogin(username, password);
         });
@@ -577,7 +604,7 @@ function setupAuthHandlers() {
     }
 
     if (accountForm) {
-        accountForm.addEventListener('submit', (e) => {
+        accountForm.addEventListener('submit', async (e) => {
             e.preventDefault();
             if (!canManageAccounts(getCurrentUser()?.role)) {
                 alert('Hanya administrator yang bisa mengelola akun.');
@@ -610,7 +637,7 @@ function setupAuthHandlers() {
             } else {
                 accounts.push({ username, password, role, displayName });
             }
-            saveAccounts(accounts);
+            await saveAccounts(accounts);
             renderAccounts();
             accountForm.reset();
             alert('Akun berhasil disimpan.');
