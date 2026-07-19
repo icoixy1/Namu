@@ -40,6 +40,7 @@ const firebaseConfig = {
 
 let firebaseDb = null;
 let firebaseEnabled = false;
+let accountsUnsubscribe = null;
 
 function initFirebase() {
     try {
@@ -106,6 +107,35 @@ async function saveAccountsToFirestore(accounts) {
         await batch.commit();
     } catch (err) {
         console.warn('Gagal menyimpan akun ke Firebase:', err);
+    }
+}
+
+function subscribeAccountsRealtime() {
+    if (!firebaseEnabled || !firebaseDb) return;
+    try {
+        if (accountsUnsubscribe) accountsUnsubscribe();
+        accountsUnsubscribe = firebaseDb.collection('accounts')
+            .onSnapshot(snap => {
+                const accounts = [];
+                snap.forEach(doc => {
+                    const data = doc.data() || {};
+                    accounts.push({
+                        username: doc.id,
+                        password: data.password || '',
+                        role: data.role || 'staff',
+                        displayName: data.displayName || doc.id,
+                        online: Boolean(data.online),
+                        lastSeen: data.lastSeen || null
+                    });
+                });
+                localStorage.setItem('pos_accounts', JSON.stringify(accounts));
+                try { renderAccounts(); } catch (e) { }
+                console.log('Accounts synced from Firestore (snapshot).');
+            }, err => {
+                console.error('Firestore snapshot error:', err);
+            });
+    } catch (err) {
+        console.error('Gagal mensubscribe accounts realtime:', err);
     }
 }
 
@@ -438,6 +468,23 @@ function setupAuthHandlers() {
         manageBtn.addEventListener('click', manageAccounts);
     }
 
+    const syncBtn = document.getElementById('sync-accounts-btn');
+    if (syncBtn) {
+        syncBtn.addEventListener('click', async () => {
+            if (!firebaseEnabled) {
+                alert('Firebase belum terinisialisasi. Pastikan `firebaseConfig` terpasang.');
+                return;
+            }
+            try {
+                await pushLocalAccountsToFirestore();
+                alert('Sinkronisasi akun dipicu. Cek Firebase Console untuk hasil.');
+            } catch (err) {
+                console.error(err);
+                alert('Gagal melakukan sinkronisasi. Lihat console untuk detail.');
+            }
+        });
+    }
+
     if (logoutBtn) {
         logoutBtn.addEventListener('click', logout);
     }
@@ -636,7 +683,14 @@ function switchMenu(menuId) {
     });
 }
 
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
+    // Init Firebase and realtime sync if available
+    initFirebase();
+    if (firebaseEnabled) {
+        await syncRemoteAccountsToLocal();
+        subscribeAccountsRealtime();
+    }
+
     setupAuthHandlers();
     const currentUser = getCurrentUser();
     if (currentUser) {
