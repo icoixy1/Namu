@@ -253,12 +253,13 @@ function loadAccounts() {
 }
 
 async function syncRemoteAccountsToLocal() {
-    if (!firebaseEnabled) return;
+    if (!firebaseEnabled) return null;
     const remoteAccounts = await fetchRemoteAccounts();
     if (Array.isArray(remoteAccounts) && remoteAccounts.length > 0) {
         saveAccountsLocally(remoteAccounts);
         return remoteAccounts;
     }
+    console.log('Tidak ada akun Firestore yang ditemukan saat sinkronisasi.');
     return null;
 }
 
@@ -506,10 +507,14 @@ function setupAuthHandlers() {
     const logoutBtn = document.getElementById('logout-btn');
 
     if (loginForm) {
-        loginForm.addEventListener('submit', (e) => {
+        loginForm.addEventListener('submit', async (e) => {
             e.preventDefault();
             const username = document.getElementById('login-username')?.value.trim();
             const password = document.getElementById('login-password')?.value;
+            if (firebaseEnabled && firebaseDb) {
+                console.log('Firebase aktif, memuat akun terbaru dari Firestore sebelum login.');
+                await syncRemoteAccountsToLocal();
+            }
             handleLogin(username, password);
         });
     }
