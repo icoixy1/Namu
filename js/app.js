@@ -82,6 +82,7 @@ async function fetchRemoteAccounts() {
                 lastSeen: data.lastSeen || null
             });
         });
+        console.log(`Firebase fetchRemoteAccounts: ${accounts.length} akun ditemukan.`);
         return accounts;
     } catch (err) {
         console.warn('Gagal mengambil akun dari Firebase:', err);
@@ -90,7 +91,10 @@ async function fetchRemoteAccounts() {
 }
 
 async function saveAccountsToFirestore(accounts) {
-    if (!firebaseEnabled || !firebaseDb) return;
+    if (!firebaseEnabled || !firebaseDb) {
+        console.warn('Tidak dapat menyimpan akun ke Firebase karena Firebase belum terinisialisasi.');
+        return;
+    }
     try {
         const batch = firebaseDb.batch();
         const accountsCollection = firebaseDb.collection('accounts');
@@ -105,6 +109,7 @@ async function saveAccountsToFirestore(accounts) {
             });
         });
         await batch.commit();
+        console.log(`Firebase saveAccountsToFirestore: ${accounts.length} akun berhasil disimpan.`);
     } catch (err) {
         console.warn('Gagal menyimpan akun ke Firebase:', err);
     }
@@ -130,7 +135,7 @@ function subscribeAccountsRealtime() {
                 });
                 localStorage.setItem('pos_accounts', JSON.stringify(accounts));
                 try { renderAccounts(); } catch (e) { }
-                console.log('Accounts synced from Firestore (snapshot).');
+                console.log(`Accounts synced from Firestore snapshot: ${accounts.length} akun.`);
             }, err => {
                 console.error('Firestore snapshot error:', err);
             });
@@ -178,7 +183,8 @@ window.checkFirebaseStatus = function() {
         projectId: firebaseConfig?.projectId || null,
         hasFirestore: !!firebaseDb,
         localAccountsCount: Array.isArray(localAccounts) ? localAccounts.length : 0,
-        localAccounts
+        localAccounts,
+        currentUser: getCurrentUser()
     };
 };
 window.forceSyncAccounts = async function() {
