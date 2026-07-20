@@ -44,14 +44,7 @@ let accountsUnsubscribe = null;
 
 function initFirebase() {
     try {
-        if (!window.        rules_version = '2';
-        service cloud.firestore {
-          match /databases/{database}/documents {
-            match /{document=**} {
-              allow read, write: if true;
-            }
-          }
-        }firebase) {
+        if (!window.firebase) {
             console.warn('Firebase SDK tidak ditemukan. Pastikan script Firebase dimuat di index.html');
             return false;
         }
