@@ -539,6 +539,27 @@ function canManageAccounts(role) {
     return role === 'owner_admin';
 }
 
+function setAdminPanelVisibility(visible) {
+    const panel = document.getElementById('admin-panel');
+    const manageBtn = document.getElementById('manage-accounts-btn');
+    if (!panel) return;
+
+    panel.classList.toggle('hidden', !visible);
+    if (manageBtn) {
+        manageBtn.textContent = visible ? 'Sembunyikan Akun' : 'Tampilkan Akun';
+        manageBtn.setAttribute('aria-expanded', String(visible));
+    }
+
+    if (visible) {
+        try {
+            renderAccounts();
+            panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        } catch (err) {
+            console.warn('Gagal merender akun admin:', err);
+        }
+    }
+}
+
 function canChangeOwnPassword(role) {
     return Boolean(role) && role !== 'guest';
 }
@@ -601,8 +622,7 @@ function applyAccessPermissions() {
     if (manageBtn) {
         manageBtn.classList.toggle('hidden', !canManageAccounts(role));
         if (!canManageAccounts(role)) {
-            manageBtn.textContent = 'Kelola Akun';
-            manageBtn.setAttribute('aria-expanded', 'false');
+            setAdminPanelVisibility(false);
         }
     }
 
@@ -629,10 +649,8 @@ function applyAccessPermissions() {
         }
     }
 
-    if (adminPanel) {
-        if (!canManageAccounts(role)) {
-            adminPanel.classList.add('hidden');
-        }
+    if (adminPanel && !canManageAccounts(role)) {
+        adminPanel.classList.add('hidden');
     }
 
     if (cashflowBtn) {
@@ -775,21 +793,9 @@ function renderAccounts() {
 
 function manageAccounts() {
     const panel = document.getElementById('admin-panel');
-    const manageBtn = document.getElementById('manage-accounts-btn');
     if (!panel) return;
-
     const isHidden = panel.classList.contains('hidden');
-    panel.classList.toggle('hidden', !isHidden);
-
-    if (manageBtn) {
-        manageBtn.textContent = isHidden ? 'Tutup Kelola Akun' : 'Kelola Akun';
-        manageBtn.setAttribute('aria-expanded', String(isHidden));
-    }
-
-    if (isHidden) {
-        renderAccounts();
-        panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    }
+    setAdminPanelVisibility(!isHidden);
 }
 
 function setupAuthHandlers() {
