@@ -857,6 +857,18 @@ function setupAuthHandlers() {
         changePasswordLink.addEventListener('click', changePasswordForCurrentUser);
     }
 
+    const manageAkunNavBtn = document.getElementById('nav-manage-akun');
+    if (manageAkunNavBtn) {
+        manageAkunNavBtn.addEventListener('click', (event) => {
+            event.preventDefault();
+            if (!canManageAccounts(getCurrentUser()?.role)) {
+                alert('Hanya administrator yang bisa membuka manajemen akun.');
+                return;
+            }
+            setAdminPanelVisibility(true);
+        });
+    }
+
     const toggleLoginPasswordBtn = document.getElementById('toggle-login-password-btn');
     if (toggleLoginPasswordBtn) {
         toggleLoginPasswordBtn.addEventListener('click', () => {
