@@ -544,8 +544,14 @@ function setAdminPanelVisibility(visible) {
     const manageBtn = document.getElementById('manage-accounts-btn');
     if (!modal) return;
 
-    modal.classList.toggle('hidden', !visible);
-    modal.classList.toggle('flex', visible);
+    if (visible) {
+        modal.classList.remove('hidden');
+        modal.classList.add('flex');
+    } else {
+        modal.classList.add('hidden');
+        modal.classList.remove('flex');
+    }
+
     if (manageBtn) {
         manageBtn.textContent = visible ? 'Sembunyikan Akun' : 'Tampilkan Akun';
         manageBtn.setAttribute('aria-expanded', String(visible));
@@ -795,7 +801,7 @@ function manageAccounts() {
     const modal = document.getElementById('admin-modal');
     if (!modal) return;
     const isHidden = modal.classList.contains('hidden');
-    setAdminPanelVisibility(!isHidden);
+    setAdminPanelVisibility(isHidden);
 }
 
 function setupAuthHandlers() {
@@ -822,7 +828,10 @@ function setupAuthHandlers() {
     }
 
     if (manageBtn) {
-        manageBtn.addEventListener('click', manageAccounts);
+        manageBtn.addEventListener('click', (event) => {
+            event.preventDefault();
+            manageAccounts();
+        });
     }
 
     const closeAdminPanelBtn = document.getElementById('close-admin-panel-btn');
