@@ -566,6 +566,16 @@ function setAdminPanelVisibility(visible) {
     }
 }
 
+function openAccountManagementModal() {
+    const role = getCurrentUser()?.role || 'guest';
+    if (!canManageAccounts(role)) {
+        alert('Hanya administrator yang bisa membuka manajemen akun.');
+        return;
+    }
+    setAdminPanelVisibility(true);
+    renderAccounts();
+}
+
 function canChangeOwnPassword(role) {
     return Boolean(role) && role !== 'guest';
 }
@@ -861,11 +871,7 @@ function setupAuthHandlers() {
     if (manageAkunNavBtn) {
         manageAkunNavBtn.addEventListener('click', (event) => {
             event.preventDefault();
-            if (!canManageAccounts(getCurrentUser()?.role)) {
-                alert('Hanya administrator yang bisa membuka manajemen akun.');
-                return;
-            }
-            setAdminPanelVisibility(true);
+            openAccountManagementModal();
         });
     }
 
