@@ -539,6 +539,47 @@ function canManageAccounts(role) {
     return role === 'owner_admin';
 }
 
+function canChangeOwnPassword(role) {
+    return Boolean(role) && role !== 'guest';
+}
+
+function changePasswordForCurrentUser() {
+    const currentUser = getCurrentUser();
+    if (!currentUser) {
+        alert('Silakan login terlebih dahulu.');
+        return;
+    }
+
+    const accounts = loadAccounts();
+    const account = accounts.find(acc => acc.username === currentUser.username);
+    if (!account) {
+        alert('Akun sedang login tidak ditemukan.');
+        return;
+    }
+
+    const currentPassword = window.prompt('Masukkan password saat ini:', '');
+    if (currentPassword === null) return;
+    if (String(account.password || '').trim() !== String(currentPassword || '').trim()) {
+        alert('Password saat ini salah.');
+        return;
+    }
+
+    const newPassword = window.prompt('Masukkan password baru:', '');
+    if (newPassword === null) return;
+    const trimmedNewPassword = String(newPassword || '').trim();
+    if (!trimmedNewPassword) {
+        alert('Password baru tidak boleh kosong.');
+        return;
+    }
+
+    const confirmed = window.confirm('Apakah Anda yakin ingin mengubah password?');
+    if (!confirmed) return;
+
+    account.password = trimmedNewPassword;
+    saveAccounts(accounts);
+    alert('Password berhasil diubah.');
+}
+
 function applyAccessPermissions() {
     const role = getCurrentUser()?.role || 'guest';
     const editControls = document.querySelectorAll('.auth-edit-control');
@@ -547,6 +588,7 @@ function applyAccessPermissions() {
     const cashflowBtn = document.getElementById('nav-cashflow');
     const omsetBtn = document.getElementById('nav-omset-perhari');
     const gajiBtn = document.getElementById('nav-gaji');
+    const changePasswordLink = document.getElementById('change-password-link');
 
     editControls.forEach(el => {
         if (canEditData(role)) {
@@ -598,6 +640,9 @@ function applyAccessPermissions() {
     if (gajiBtn) {
         gajiBtn.classList.toggle('hidden', !canViewGaji(role));
         gajiBtn.classList.toggle('inline-flex', canViewGaji(role));
+    }
+    if (changePasswordLink) {
+        changePasswordLink.classList.toggle('hidden', !canChangeOwnPassword(role));
     }
 
     const userBadge = document.getElementById('user-badge');
@@ -759,6 +804,11 @@ function setupAuthHandlers() {
 
     if (logoutBtn) {
         logoutBtn.addEventListener('click', logout);
+    }
+
+    const changePasswordLink = document.getElementById('change-password-link');
+    if (changePasswordLink) {
+        changePasswordLink.addEventListener('click', changePasswordForCurrentUser);
     }
 
     const toggleLoginPasswordBtn = document.getElementById('toggle-login-password-btn');
