@@ -69,7 +69,16 @@ function getFirebaseErrorMessage(err) {
 
 function setFirebaseStatus(message, connected) {
     const firebaseStatusEl = document.getElementById('firebase-status');
+    const firebaseStatusWrapper = document.getElementById('firebase-status-wrapper');
     if (!firebaseStatusEl) return;
+
+    const currentUser = getCurrentUser();
+    const role = currentUser?.role || 'guest';
+    if (firebaseStatusWrapper) {
+        firebaseStatusWrapper.classList.toggle('hidden', !canManageAccounts(role));
+        firebaseStatusWrapper.classList.toggle('flex', canManageAccounts(role));
+    }
+
     firebaseStatusEl.textContent = message;
     firebaseStatusEl.classList.toggle('bg-emerald-100', connected);
     firebaseStatusEl.classList.toggle('text-emerald-700', connected);
@@ -362,7 +371,13 @@ async function saveAccounts(accounts, options = { syncToFirebase: true }) {
         }
         return;
     }
-    await saveAccountsToFirestore(normalizedAccounts);
+
+    try {
+        await saveAccountsToFirestore(normalizedAccounts);
+        console.log('Auto-sync akun ke Firestore berhasil.');
+    } catch (err) {
+        console.warn('Auto-sync akun ke Firestore gagal:', err);
+    }
 }
 
 const LEGACY_ACCOUNT_ALIASES = {
@@ -546,6 +561,11 @@ function applyAccessPermissions() {
     }
 
     const firebaseStatusEl = document.getElementById('firebase-status');
+    const firebaseStatusWrapper = document.getElementById('firebase-status-wrapper');
+    if (firebaseStatusWrapper) {
+        firebaseStatusWrapper.classList.toggle('hidden', !canManageAccounts(role));
+        firebaseStatusWrapper.classList.toggle('flex', canManageAccounts(role));
+    }
     if (firebaseStatusEl) {
         if (firebaseEnabled && firebaseDb) {
             firebaseStatusEl.textContent = 'Terhubung';
