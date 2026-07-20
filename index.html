@@ -11,6 +11,7 @@
     <!-- Firebase SDK untuk sinkronisasi akun antar perangkat -->
     <script src="https://www.gstatic.com/firebasejs/10.9.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.9.0/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.9.0/firebase-auth-compat.js"></script>
     <style>
         /* Tabel riwayat bahan: paksa fixed layout dan potong teks yang terlalu panjang */
         #menu-bahan-masuk table { table-layout: fixed; }
@@ -141,13 +142,14 @@
                     </div>
                 </div>
                 <div id="account-list" class="space-y-2 mb-4"></div>
-                <form id="account-form" class="grid grid-cols-1 md:grid-cols-5 gap-3">
+                <form id="account-form" class="grid grid-cols-1 md:grid-cols-6 gap-3">
                     <input id="account-original-username" type="hidden">
                     <input id="account-username" type="text" placeholder="Username login" class="border rounded px-3 py-2 text-sm" required>
                     <div class="relative">
                         <input id="account-password" type="password" placeholder="Password" class="w-full border rounded px-3 py-2 text-sm pr-28" required>
                         <button id="toggle-account-password-btn" type="button" class="absolute right-2 top-1/2 -translate-y-1/2 bg-slate-100 text-slate-700 border border-slate-300 rounded px-3 py-1 text-xs hover:bg-slate-200">Tampilkan</button>
                     </div>
+                    <input id="account-email" type="email" placeholder="Email (opsional)" class="border rounded px-3 py-2 text-sm">
                     <input id="account-display-name" type="text" placeholder="Nama panggilan" class="border rounded px-3 py-2 text-sm" required>
                     <select id="account-role" class="border rounded px-3 py-2 text-sm bg-white">
                         <option value="staff">Staff</option>

@@ -40,6 +40,8 @@ const firebaseConfig = {
 
 let firebaseDb = null;
 let firebaseEnabled = false;
+let firebaseAuth = null;
+let firebaseAuthEnabled = false;
 let accountsUnsubscribe = null;
 let firebaseLastError = null;
 
@@ -50,6 +52,8 @@ function normalizeAccount(account) {
         password: String(account?.password || '').trim(),
         role: account?.role || 'staff',
         displayName: String(account?.displayName || account?.username || '').trim() || username,
+        email: String(account?.email || '').trim().toLowerCase(),
+        firebaseUid: String(account?.firebaseUid || '').trim(),
         online: Boolean(account?.online),
         lastSeen: account?.lastSeen || null
     };
@@ -91,6 +95,7 @@ function initFirebase() {
         firebaseDb = window.firebase.firestore();
         firebaseEnabled = true;
         firebaseLastError = null;
+        initFirebaseAuth();
         subscribeAccountsRealtime();
         setFirebaseStatus('Terhubung', true);
         console.log('Firebase inisialisasi berhasil. Firestore siap.');
@@ -104,18 +109,82 @@ function initFirebase() {
     }
 }
 
+function initFirebaseAuth() {
+    try {
+        if (!window.firebase || !window.firebase.auth) {
+            console.warn('Firebase Auth SDK tidak tersedia.');
+            firebaseAuthEnabled = false;
+            return false;
+        }
+        firebaseAuth = window.firebase.auth();
+        firebaseAuthEnabled = true;
+        console.log('Firebase Auth siap.');
+        return true;
+    } catch (err) {
+        console.warn('Gagal menginisialisasi Firebase Auth:', err);
+        firebaseAuthEnabled = false;
+        return false;
+    }
+}
+
+async function signInWithFirebaseAuth(email, password) {
+    if (!firebaseAuthEnabled || !firebaseAuth || !email || !password) {
+        throw new Error('Firebase Auth belum siap.');
+    }
+    return firebaseAuth.signInWithEmailAndPassword(email, password);
+}
+
+async function createFirebaseAuthUser(email, password) {
+    if (!firebaseAuthEnabled || !firebaseAuth || !email || !password) {
+        throw new Error('Firebase Auth belum siap.');
+    }
+    const userCredential = await firebaseAuth.createUserWithEmailAndPassword(email, password);
+    return userCredential.user;
+}
+
+async function findAccountByFirebaseUser(user) {
+    if (!firebaseEnabled || !firebaseDb || !user) return null;
+    try {
+        const snapshot = await firebaseDb.collection('accounts').get();
+        let match = null;
+        snapshot.forEach(doc => {
+            const data = doc.data() || {};
+            const email = String(data.email || '').trim().toLowerCase();
+            const firebaseUid = String(data.firebaseUid || '').trim();
+            if (email === String(user.email || '').trim().toLowerCase() || firebaseUid === String(user.uid || '').trim()) {
+                match = normalizeAccount({
+                    username: doc.id,
+                    password: data.password,
+                    role: data.role,
+                    displayName: data.displayName,
+                    email: data.email,
+                    firebaseUid: data.firebaseUid,
+                    online: data.online,
+                    lastSeen: data.lastSeen
+                });
+            }
+        });
+        return match;
+    } catch (err) {
+        console.warn('Gagal mencari akun berdasarkan Firebase Auth:', err);
+        return null;
+    }
+}
+
 async function fetchRemoteAccounts() {
     if (!firebaseEnabled || !firebaseDb) return null;
     try {
         const snapshot = await firebaseDb.collection('accounts').get();
         const accounts = [];
         snapshot.forEach(doc => {
-            const data = doc.data();
+            const data = doc.data() || {};
             accounts.push(normalizeAccount({
                 username: doc.id,
                 password: data.password,
                 role: data.role,
                 displayName: data.displayName,
+                email: data.email,
+                firebaseUid: data.firebaseUid,
                 online: data.online,
                 lastSeen: data.lastSeen
             }));
@@ -158,6 +227,8 @@ async function saveAccountsToFirestore(accounts) {
                 password: normalizedAccount.password,
                 role: normalizedAccount.role,
                 displayName: normalizedAccount.displayName,
+                email: normalizedAccount.email,
+                firebaseUid: normalizedAccount.firebaseUid,
                 online: Boolean(normalizedAccount.online),
                 lastSeen: normalizedAccount.lastSeen || null
             });
@@ -193,6 +264,8 @@ function subscribeAccountsRealtime() {
                         password: data.password,
                         role: data.role,
                         displayName: data.displayName,
+                        email: data.email,
+                        firebaseUid: data.firebaseUid,
                         online: data.online,
                         lastSeen: data.lastSeen
                     }));
@@ -561,13 +634,33 @@ function setLoginMessage(message, type = 'error') {
 
 async function handleLogin(username, password) {
     const accounts = loadAccounts();
+    const normalizedEmail = String(username || '').trim().toLowerCase();
+    if (firebaseAuthEnabled && normalizedEmail.includes('@')) {
+        try {
+            const userCredential = await signInWithFirebaseAuth(normalizedEmail, password);
+            const matched = await findAccountByFirebaseUser(userCredential.user);
+            if (matched) {
+                const sessionUser = { username: matched.username, role: matched.role, displayName: matched.displayName || matched.username, email: matched.email, firebaseUid: matched.firebaseUid };
+                setCurrentUser(sessionUser);
+                markUserOnline(sessionUser);
+                updateSessionActivity();
+                setLoginMessage('Login berhasil. Anda sedang diarahkan ke dashboard.', 'success');
+                showAppShell();
+                switchMenu('dashboard');
+                return true;
+            }
+        } catch (err) {
+            console.warn('Login Firebase Auth gagal:', err);
+        }
+    }
+
     const matched = findAccount(username, accounts);
     const normalizedPassword = String(password || '').trim();
     if (!matched || String(matched.password || '').trim() !== normalizedPassword) {
         setLoginMessage('Username atau password salah.', 'error');
         return false;
     }
-    const sessionUser = { username: matched.username, role: matched.role, displayName: matched.displayName || matched.username };
+    const sessionUser = { username: matched.username, role: matched.role, displayName: matched.displayName || matched.username, email: matched.email, firebaseUid: matched.firebaseUid };
     setCurrentUser(sessionUser);
     markUserOnline(sessionUser);
     updateSessionActivity();
@@ -688,6 +781,7 @@ function setupAuthHandlers() {
             const originalUsername = document.getElementById('account-original-username')?.value;
             const username = String(document.getElementById('account-username')?.value || '').trim();
             const password = String(document.getElementById('account-password')?.value || '').trim();
+            const email = String(document.getElementById('account-email')?.value || '').trim().toLowerCase();
             const displayName = String(document.getElementById('account-display-name')?.value || '').trim() || username;
             const role = document.getElementById('account-role')?.value;
             if (!username || !password || !role) return;
@@ -705,13 +799,29 @@ function setupAuthHandlers() {
                 target.password = password;
                 target.role = role;
                 target.displayName = displayName;
+                if (email) target.email = email;
+                if (target.firebaseUid) target.firebaseUid = target.firebaseUid;
             } else if (duplicate) {
                 duplicate.password = password;
                 duplicate.role = role;
                 duplicate.displayName = displayName;
+                if (email) duplicate.email = email;
             } else {
-                accounts.push({ username, password, role, displayName });
+                accounts.push({ username, password, role, displayName, email });
             }
+
+            if (email && firebaseAuthEnabled) {
+                try {
+                    const user = await createFirebaseAuthUser(email, password);
+                    const savedAccount = accounts.find(acc => acc.username === username);
+                    if (savedAccount) {
+                        savedAccount.firebaseUid = user.uid;
+                    }
+                } catch (err) {
+                    console.warn('Gagal membuat akun Firebase Auth:', err);
+                }
+            }
+
             await saveAccounts(accounts);
             renderAccounts();
             accountForm.reset();
