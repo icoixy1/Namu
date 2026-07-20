@@ -57,6 +57,7 @@ function initFirebase() {
         }
         firebaseDb = window.firebase.firestore();
         firebaseEnabled = true;
+        subscribeAccountsRealtime();
         console.log('Firebase inisialisasi berhasil. Firestore siap.');
         return true;
     } catch (err) {
@@ -151,8 +152,7 @@ function subscribeAccountsRealtime() {
                         lastSeen: data.lastSeen || null
                     });
                 });
-                localStorage.setItem('pos_accounts', JSON.stringify(accounts));
-                try { renderAccounts(); } catch (e) { }
+                applyRemoteAccounts(accounts);
                 console.log(`Accounts synced from Firestore snapshot: ${accounts.length} akun.`);
             }, err => {
                 console.error('Firestore snapshot error:', err);
@@ -216,15 +216,47 @@ function saveAccountsLocally(accounts) {
     localStorage.setItem('pos_accounts', JSON.stringify(accounts));
 }
 
+function applyRemoteAccounts(accounts) {
+    if (!Array.isArray(accounts)) return;
+    const normalizedAccounts = accounts
+        .map(account => ({
+            username: String(account.username || '').trim(),
+            password: String(account.password || '').trim(),
+            role: account.role || 'staff',
+            displayName: account.displayName || account.username || '',
+            online: Boolean(account.online),
+            lastSeen: account.lastSeen || null
+        }))
+        .filter(account => account.username);
+
+    saveAccountsLocally(normalizedAccounts);
+    try {
+        renderAccounts();
+    } catch (e) {
+        console.warn('Gagal me-render daftar akun:', e);
+    }
+    applyAccessPermissions();
+}
+
 async function saveAccounts(accounts, options = { syncToFirebase: true }) {
-    saveAccountsLocally(accounts);
+    const normalizedAccounts = Array.isArray(accounts) ? accounts.map(account => ({
+        ...account,
+        username: String(account.username || '').trim(),
+        password: String(account.password || '').trim(),
+        role: account.role || 'staff',
+        displayName: account.displayName || account.username || '',
+        online: Boolean(account.online),
+        lastSeen: account.lastSeen || null
+    })).filter(account => account.username) : [];
+
+    saveAccountsLocally(normalizedAccounts);
     if (!firebaseEnabled || !options.syncToFirebase) {
         if (!firebaseEnabled) {
             console.log('Akun disimpan ke localStorage cache; Firebase belum aktif atau sinkronisasi dimatikan.');
         }
         return;
     }
-    await saveAccountsToFirestore(accounts);
+    await saveAccountsToFirestore(normalizedAccounts);
 }
 
 const LEGACY_ACCOUNT_ALIASES = {
@@ -279,7 +311,7 @@ async function syncRemoteAccountsToLocal() {
     if (!firebaseEnabled) return null;
     const remoteAccounts = await fetchRemoteAccounts();
     if (Array.isArray(remoteAccounts) && remoteAccounts.length > 0) {
-        saveAccountsLocally(remoteAccounts);
+        applyRemoteAccounts(remoteAccounts);
         return remoteAccounts;
     }
     console.log('Tidak ada akun Firestore yang ditemukan saat sinkronisasi.');
@@ -292,12 +324,13 @@ async function synchronizeAccounts() {
     }
     const remoteAccounts = await fetchRemoteAccounts();
     if (Array.isArray(remoteAccounts) && remoteAccounts.length > 0) {
-        saveAccountsLocally(remoteAccounts);
+        applyRemoteAccounts(remoteAccounts);
         console.log('Sinkronisasi: akun diambil dari Firestore.');
         return { source: 'firestore', accounts: remoteAccounts };
     }
     const localAccounts = loadAccounts();
     await saveAccountsToFirestore(localAccounts);
+    applyRemoteAccounts(localAccounts);
     console.log('Sinkronisasi: Firestore kosong, akun lokal dipush ke Firestore.');
     return { source: 'local', accounts: localAccounts };
 }
