@@ -560,6 +560,11 @@ function applyAccessPermissions() {
         manageBtn.classList.toggle('hidden', !canManageAccounts(role));
     }
 
+    const headerControls = document.querySelectorAll('[data-admin-only]');
+    headerControls.forEach(el => {
+        el.classList.toggle('hidden', !canManageAccounts(role));
+    });
+
     const firebaseStatusEl = document.getElementById('firebase-status');
     const firebaseStatusWrapper = document.getElementById('firebase-status-wrapper');
     if (firebaseStatusWrapper) {
@@ -750,29 +755,6 @@ function setupAuthHandlers() {
 
     if (manageBtn) {
         manageBtn.addEventListener('click', manageAccounts);
-    }
-
-    const syncBtn = document.getElementById('sync-accounts-btn');
-    if (syncBtn) {
-        syncBtn.addEventListener('click', async () => {
-            if (!firebaseEnabled) {
-                alert('Firebase belum terinisialisasi. Pastikan firebaseConfig terpasang dan Firestore sudah aktif.');
-                return;
-            }
-            try {
-                const result = await synchronizeAccounts();
-                if (result.source === 'firestore') {
-                    alert('Sinkronisasi selesai: data akun terbaru diambil dari Firestore.');
-                } else if (result.warning) {
-                    alert(`Sinkronisasi memakai data lokal karena Firestore diblokir: ${result.warning}`);
-                } else {
-                    alert('Sinkronisasi selesai: data lokal dipush ke Firestore karena Firestore kosong.');
-                }
-            } catch (err) {
-                console.error(err);
-                alert(`Gagal melakukan sinkronisasi: ${getFirebaseErrorMessage(err)}`);
-            }
-        });
     }
 
     if (logoutBtn) {
