@@ -600,6 +600,10 @@ function applyAccessPermissions() {
 
     if (manageBtn) {
         manageBtn.classList.toggle('hidden', !canManageAccounts(role));
+        if (!canManageAccounts(role)) {
+            manageBtn.textContent = 'Kelola Akun';
+            manageBtn.setAttribute('aria-expanded', 'false');
+        }
     }
 
     const headerControls = document.querySelectorAll('[data-admin-only]');
@@ -626,7 +630,9 @@ function applyAccessPermissions() {
     }
 
     if (adminPanel) {
-        adminPanel.classList.toggle('hidden', !canManageAccounts(role));
+        if (!canManageAccounts(role)) {
+            adminPanel.classList.add('hidden');
+        }
     }
 
     if (cashflowBtn) {
