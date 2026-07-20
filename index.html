@@ -151,32 +151,6 @@
 
         <!-- DYNAMIC CONTENT CONTAINER -->
         <div id="content-container" class="p-6 space-y-6">
-            <div id="admin-panel" class="hidden rounded-xl border border-slate-200 bg-white p-4 shadow-sm md:p-6">
-                <div class="mb-4 flex flex-col gap-3 border-b border-slate-200 pb-3 md:flex-row md:items-center md:justify-between">
-                    <div>
-                        <h3 class="font-bold text-gray-800">Manajemen Akun Login</h3>
-                        <p class="text-sm text-gray-500">Tambah, ubah password, atau hapus akun akses aplikasi.</p>
-                    </div>
-                    <button id="close-admin-panel-btn" type="button" class="self-start rounded border border-slate-300 px-3 py-1.5 text-sm text-slate-600 hover:bg-slate-100 md:self-auto">Tutup</button>
-                </div>
-                <div id="account-list" class="space-y-2 mb-4"></div>
-                <form id="account-form" class="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-6">
-                    <input id="account-original-username" type="hidden">
-                    <input id="account-username" type="text" placeholder="Username login" class="border rounded px-3 py-2 text-sm" required>
-                    <div class="relative">
-                        <input id="account-password" type="password" placeholder="Password" class="w-full border rounded px-3 py-2 text-sm pr-28" required>
-                        <button id="toggle-account-password-btn" type="button" class="absolute right-2 top-1/2 -translate-y-1/2 bg-slate-100 text-slate-700 border border-slate-300 rounded px-3 py-1 text-xs hover:bg-slate-200">Tampilkan</button>
-                    </div>
-                    <input id="account-email" type="email" placeholder="Email (opsional)" class="border rounded px-3 py-2 text-sm">
-                    <input id="account-display-name" type="text" placeholder="Nama panggilan" class="border rounded px-3 py-2 text-sm" required>
-                    <select id="account-role" class="border rounded px-3 py-2 text-sm bg-white">
-                        <option value="staff">Staff</option>
-                        <option value="owner">Owner</option>
-                        <option value="owner_admin">Owner + Administrator</option>
-                    </select>
-                    <button type="submit" class="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold rounded px-3 py-2 text-sm">Simpan Akun</button>
-                </form>
-            </div>
             
             <!-- 1. DASHBOARD MENU -->
             <section id="menu-dashboard" class="space-y-6">
@@ -431,6 +405,37 @@
 
         </div>
     </main>
+
+    <div id="admin-modal" class="fixed inset-0 z-[100] hidden items-center justify-center bg-black/60 p-4">
+        <div class="w-full max-w-5xl rounded-2xl bg-white shadow-2xl">
+            <div class="flex items-center justify-between border-b border-slate-200 px-4 py-3 sm:px-6">
+                <div>
+                    <h3 class="font-bold text-gray-800">Manajemen Akun Login</h3>
+                    <p class="text-sm text-gray-500">Tambah, ubah password, atau hapus akun akses aplikasi.</p>
+                </div>
+                <button id="close-admin-panel-btn" type="button" class="rounded border border-slate-300 px-3 py-1.5 text-sm text-slate-600 hover:bg-slate-100">Tutup</button>
+            </div>
+            <div class="max-h-[75vh] overflow-y-auto p-4 sm:p-6">
+                <div id="account-list" class="space-y-2 mb-4"></div>
+                <form id="account-form" class="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-6">
+                    <input id="account-original-username" type="hidden">
+                    <input id="account-username" type="text" placeholder="Username login" class="border rounded px-3 py-2 text-sm" required>
+                    <div class="relative">
+                        <input id="account-password" type="password" placeholder="Password" class="w-full border rounded px-3 py-2 text-sm pr-28" required>
+                        <button id="toggle-account-password-btn" type="button" class="absolute right-2 top-1/2 -translate-y-1/2 bg-slate-100 text-slate-700 border border-slate-300 rounded px-3 py-1 text-xs hover:bg-slate-200">Tampilkan</button>
+                    </div>
+                    <input id="account-email" type="email" placeholder="Email (opsional)" class="border rounded px-3 py-2 text-sm">
+                    <input id="account-display-name" type="text" placeholder="Nama panggilan" class="border rounded px-3 py-2 text-sm" required>
+                    <select id="account-role" class="border rounded px-3 py-2 text-sm bg-white">
+                        <option value="staff">Staff</option>
+                        <option value="owner">Owner</option>
+                        <option value="owner_admin">Owner + Administrator</option>
+                    </select>
+                    <button type="submit" class="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold rounded px-3 py-2 text-sm">Simpan Akun</button>
+                </form>
+            </div>
+        </div>
+    </div>
 
     <!-- ================= MODALS (POPUP) ================= -->
     

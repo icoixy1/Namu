@@ -540,11 +540,12 @@ function canManageAccounts(role) {
 }
 
 function setAdminPanelVisibility(visible) {
-    const panel = document.getElementById('admin-panel');
+    const modal = document.getElementById('admin-modal');
     const manageBtn = document.getElementById('manage-accounts-btn');
-    if (!panel) return;
+    if (!modal) return;
 
-    panel.classList.toggle('hidden', !visible);
+    modal.classList.toggle('hidden', !visible);
+    modal.classList.toggle('flex', visible);
     if (manageBtn) {
         manageBtn.textContent = visible ? 'Sembunyikan Akun' : 'Tampilkan Akun';
         manageBtn.setAttribute('aria-expanded', String(visible));
@@ -553,7 +554,6 @@ function setAdminPanelVisibility(visible) {
     if (visible) {
         try {
             renderAccounts();
-            panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
         } catch (err) {
             console.warn('Gagal merender akun admin:', err);
         }
@@ -792,9 +792,9 @@ function renderAccounts() {
 }
 
 function manageAccounts() {
-    const panel = document.getElementById('admin-panel');
-    if (!panel) return;
-    const isHidden = panel.classList.contains('hidden');
+    const modal = document.getElementById('admin-modal');
+    if (!modal) return;
+    const isHidden = modal.classList.contains('hidden');
     setAdminPanelVisibility(!isHidden);
 }
 
@@ -827,7 +827,16 @@ function setupAuthHandlers() {
 
     const closeAdminPanelBtn = document.getElementById('close-admin-panel-btn');
     if (closeAdminPanelBtn) {
-        closeAdminPanelBtn.addEventListener('click', manageAccounts);
+        closeAdminPanelBtn.addEventListener('click', () => setAdminPanelVisibility(false));
+    }
+
+    const modal = document.getElementById('admin-modal');
+    if (modal) {
+        modal.addEventListener('click', (event) => {
+            if (event.target === modal) {
+                setAdminPanelVisibility(false);
+            }
+        });
     }
 
     if (logoutBtn) {
