@@ -41,6 +41,27 @@ const firebaseConfig = {
 let firebaseDb = null;
 let firebaseEnabled = false;
 let accountsUnsubscribe = null;
+let firebaseLastError = null;
+
+function getFirebaseErrorMessage(err) {
+    if (!err) return 'Tidak ada detail error.';
+    if (typeof err === 'string') return err;
+    if (err.message) return err.message;
+    if (err.code) return err.code;
+    return 'Error Firebase tidak diketahui.';
+}
+
+function setFirebaseStatus(message, connected) {
+    const firebaseStatusEl = document.getElementById('firebase-status');
+    if (!firebaseStatusEl) return;
+    firebaseStatusEl.textContent = message;
+    firebaseStatusEl.classList.toggle('bg-emerald-100', connected);
+    firebaseStatusEl.classList.toggle('text-emerald-700', connected);
+    firebaseStatusEl.classList.toggle('bg-amber-100', !connected);
+    firebaseStatusEl.classList.toggle('text-amber-700', !connected);
+    firebaseStatusEl.classList.toggle('bg-slate-200', !connected && message === 'Tidak terhubung');
+    firebaseStatusEl.classList.toggle('text-slate-700', !connected && message === 'Tidak terhubung');
+}
 
 function initFirebase() {
     try {
@@ -57,12 +78,16 @@ function initFirebase() {
         }
         firebaseDb = window.firebase.firestore();
         firebaseEnabled = true;
+        firebaseLastError = null;
         subscribeAccountsRealtime();
+        setFirebaseStatus('Terhubung', true);
         console.log('Firebase inisialisasi berhasil. Firestore siap.');
         return true;
     } catch (err) {
         console.error('Gagal inisialisasi Firebase:', err);
+        firebaseLastError = err;
         firebaseEnabled = false;
+        setFirebaseStatus('Tidak terhubung', false);
         return false;
     }
 }
@@ -86,7 +111,13 @@ async function fetchRemoteAccounts() {
         console.log(`Firebase fetchRemoteAccounts: ${accounts.length} akun ditemukan.`);
         return accounts;
     } catch (err) {
+        firebaseLastError = err;
         console.warn('Gagal mengambil akun dari Firebase:', err);
+        const fallbackAccounts = loadAccounts();
+        if (Array.isArray(fallbackAccounts) && fallbackAccounts.length > 0) {
+            console.warn('Menggunakan akun lokal karena Firestore tidak bisa dibaca:', getFirebaseErrorMessage(err));
+            return fallbackAccounts;
+        }
         return null;
     }
 }
@@ -129,6 +160,7 @@ async function saveAccountsToFirestore(accounts) {
         await batch.commit();
         console.log(`Firebase saveAccountsToFirestore: ${accounts.length} akun berhasil disimpan.`);
     } catch (err) {
+        firebaseLastError = err;
         console.warn('Gagal menyimpan akun ke Firebase:', err);
         throw err;
     }
@@ -155,7 +187,9 @@ function subscribeAccountsRealtime() {
                 applyRemoteAccounts(accounts);
                 console.log(`Accounts synced from Firestore snapshot: ${accounts.length} akun.`);
             }, err => {
+                firebaseLastError = err;
                 console.error('Firestore snapshot error:', err);
+                setFirebaseStatus('Akses Firestore diblokir', false);
             });
     } catch (err) {
         console.error('Gagal mensubscribe accounts realtime:', err);
@@ -202,7 +236,8 @@ window.checkFirebaseStatus = function() {
         hasFirestore: !!firebaseDb,
         localAccountsCount: Array.isArray(localAccounts) ? localAccounts.length : 0,
         localAccounts,
-        currentUser: getCurrentUser()
+        currentUser: getCurrentUser(),
+        lastError: getFirebaseErrorMessage(firebaseLastError)
     };
 };
 window.forceSyncAccounts = async function() {
@@ -326,13 +361,20 @@ async function synchronizeAccounts() {
     if (Array.isArray(remoteAccounts) && remoteAccounts.length > 0) {
         applyRemoteAccounts(remoteAccounts);
         console.log('Sinkronisasi: akun diambil dari Firestore.');
-        return { source: 'firestore', accounts: remoteAccounts };
+        return { source: 'firestore', accounts: remoteAccounts, warning: null };
     }
     const localAccounts = loadAccounts();
-    await saveAccountsToFirestore(localAccounts);
-    applyRemoteAccounts(localAccounts);
-    console.log('Sinkronisasi: Firestore kosong, akun lokal dipush ke Firestore.');
-    return { source: 'local', accounts: localAccounts };
+    try {
+        await saveAccountsToFirestore(localAccounts);
+        applyRemoteAccounts(localAccounts);
+        console.log('Sinkronisasi: Firestore kosong, akun lokal dipush ke Firestore.');
+        return { source: 'local', accounts: localAccounts, warning: null };
+    } catch (err) {
+        const warning = getFirebaseErrorMessage(err);
+        applyRemoteAccounts(localAccounts);
+        console.warn('Sinkronisasi memakai akun lokal karena Firestore tidak bisa ditulis:', warning);
+        return { source: 'local', accounts: localAccounts, warning };
+    }
 }
 
 function getCurrentUser() {
@@ -436,11 +478,11 @@ function applyAccessPermissions() {
     if (firebaseStatusEl) {
         if (firebaseEnabled && firebaseDb) {
             firebaseStatusEl.textContent = 'Terhubung';
-            firebaseStatusEl.classList.remove('bg-slate-200', 'text-slate-700');
+            firebaseStatusEl.classList.remove('bg-slate-200', 'text-slate-700', 'bg-amber-100', 'text-amber-700');
             firebaseStatusEl.classList.add('bg-emerald-100', 'text-emerald-700');
         } else {
             firebaseStatusEl.textContent = 'Tidak terhubung';
-            firebaseStatusEl.classList.remove('bg-emerald-100', 'text-emerald-700');
+            firebaseStatusEl.classList.remove('bg-emerald-100', 'text-emerald-700', 'bg-amber-100', 'text-amber-700');
             firebaseStatusEl.classList.add('bg-slate-200', 'text-slate-700');
         }
     }
@@ -603,19 +645,21 @@ function setupAuthHandlers() {
     if (syncBtn) {
         syncBtn.addEventListener('click', async () => {
             if (!firebaseEnabled) {
-                alert('Firebase belum terinisialisasi. Pastikan `firebaseConfig` terpasang.');
+                alert('Firebase belum terinisialisasi. Pastikan firebaseConfig terpasang dan Firestore sudah aktif.');
                 return;
             }
             try {
                 const result = await synchronizeAccounts();
                 if (result.source === 'firestore') {
                     alert('Sinkronisasi selesai: data akun terbaru diambil dari Firestore.');
+                } else if (result.warning) {
+                    alert(`Sinkronisasi memakai data lokal karena Firestore diblokir: ${result.warning}`);
                 } else {
                     alert('Sinkronisasi selesai: data lokal dipush ke Firestore karena Firestore kosong.');
                 }
             } catch (err) {
                 console.error(err);
-                alert('Gagal melakukan sinkronisasi. Lihat console untuk detail.');
+                alert(`Gagal melakukan sinkronisasi: ${getFirebaseErrorMessage(err)}`);
             }
         });
     }
