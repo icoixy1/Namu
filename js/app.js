@@ -769,9 +769,20 @@ function renderAccounts() {
 
 function manageAccounts() {
     const panel = document.getElementById('admin-panel');
-    if (panel) panel.classList.toggle('hidden');
-    if (!panel?.classList.contains('hidden')) {
+    const manageBtn = document.getElementById('manage-accounts-btn');
+    if (!panel) return;
+
+    const isHidden = panel.classList.contains('hidden');
+    panel.classList.toggle('hidden', !isHidden);
+
+    if (manageBtn) {
+        manageBtn.textContent = isHidden ? 'Tutup Kelola Akun' : 'Kelola Akun';
+        manageBtn.setAttribute('aria-expanded', String(isHidden));
+    }
+
+    if (isHidden) {
         renderAccounts();
+        panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
 }
 
@@ -800,6 +811,11 @@ function setupAuthHandlers() {
 
     if (manageBtn) {
         manageBtn.addEventListener('click', manageAccounts);
+    }
+
+    const closeAdminPanelBtn = document.getElementById('close-admin-panel-btn');
+    if (closeAdminPanelBtn) {
+        closeAdminPanelBtn.addEventListener('click', manageAccounts);
     }
 
     if (logoutBtn) {

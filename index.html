@@ -151,15 +151,16 @@
 
         <!-- DYNAMIC CONTENT CONTAINER -->
         <div id="content-container" class="p-6 space-y-6">
-            <div id="admin-panel" class="hidden bg-white p-6 rounded-xl shadow-sm">
-                <div class="flex flex-col md:flex-row md:items-center justify-between gap-3 mb-4">
+            <div id="admin-panel" class="hidden rounded-xl border border-slate-200 bg-white p-4 shadow-sm md:p-6">
+                <div class="mb-4 flex flex-col gap-3 border-b border-slate-200 pb-3 md:flex-row md:items-center md:justify-between">
                     <div>
                         <h3 class="font-bold text-gray-800">Manajemen Akun Login</h3>
                         <p class="text-sm text-gray-500">Tambah, ubah password, atau hapus akun akses aplikasi.</p>
                     </div>
+                    <button id="close-admin-panel-btn" type="button" class="self-start rounded border border-slate-300 px-3 py-1.5 text-sm text-slate-600 hover:bg-slate-100 md:self-auto">Tutup</button>
                 </div>
                 <div id="account-list" class="space-y-2 mb-4"></div>
-                <form id="account-form" class="grid grid-cols-1 md:grid-cols-6 gap-3">
+                <form id="account-form" class="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-6">
                     <input id="account-original-username" type="hidden">
                     <input id="account-username" type="text" placeholder="Username login" class="border rounded px-3 py-2 text-sm" required>
                     <div class="relative">
