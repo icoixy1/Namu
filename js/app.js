@@ -249,7 +249,7 @@ function migrateLegacyAccounts(accounts) {
     return accounts;
 }
 
-async function loadAccounts() {
+function loadAccounts() {
     const stored = localStorage.getItem('pos_accounts');
     if (stored) {
         try {
