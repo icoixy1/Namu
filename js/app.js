@@ -43,6 +43,18 @@ let firebaseEnabled = false;
 let accountsUnsubscribe = null;
 let firebaseLastError = null;
 
+function normalizeAccount(account) {
+    const username = String(account?.username || '').trim().toLowerCase();
+    return {
+        username,
+        password: String(account?.password || '').trim(),
+        role: account?.role || 'staff',
+        displayName: String(account?.displayName || account?.username || '').trim() || username,
+        online: Boolean(account?.online),
+        lastSeen: account?.lastSeen || null
+    };
+}
+
 function getFirebaseErrorMessage(err) {
     if (!err) return 'Tidak ada detail error.';
     if (typeof err === 'string') return err;
@@ -99,14 +111,14 @@ async function fetchRemoteAccounts() {
         const accounts = [];
         snapshot.forEach(doc => {
             const data = doc.data();
-            accounts.push({
+            accounts.push(normalizeAccount({
                 username: doc.id,
-                password: String(data.password || '').trim(),
-                role: data.role || 'staff',
-                displayName: data.displayName || doc.id,
-                online: Boolean(data.online),
-                lastSeen: data.lastSeen || null
-            });
+                password: data.password,
+                role: data.role,
+                displayName: data.displayName,
+                online: data.online,
+                lastSeen: data.lastSeen
+            }));
         });
         console.log(`Firebase fetchRemoteAccounts: ${accounts.length} akun ditemukan.`);
         return accounts;
@@ -137,16 +149,17 @@ async function saveAccountsToFirestore(accounts) {
         const currentUsernames = new Set();
 
         accounts.forEach(account => {
-            const username = String(account.username || '').trim();
+            const normalizedAccount = normalizeAccount(account);
+            const username = normalizedAccount.username;
             if (!username) return;
             currentUsernames.add(username);
             const docRef = accountsCollection.doc(username);
             batch.set(docRef, {
-                password: String(account.password || '').trim(),
-                role: account.role,
-                displayName: account.displayName,
-                online: Boolean(account.online),
-                lastSeen: account.lastSeen || null
+                password: normalizedAccount.password,
+                role: normalizedAccount.role,
+                displayName: normalizedAccount.displayName,
+                online: Boolean(normalizedAccount.online),
+                lastSeen: normalizedAccount.lastSeen || null
             });
         });
 
@@ -175,14 +188,14 @@ function subscribeAccountsRealtime() {
                 const accounts = [];
                 snap.forEach(doc => {
                     const data = doc.data() || {};
-                    accounts.push({
+                    accounts.push(normalizeAccount({
                         username: doc.id,
-                        password: String(data.password || '').trim(),
-                        role: data.role || 'staff',
-                        displayName: data.displayName || doc.id,
-                        online: Boolean(data.online),
-                        lastSeen: data.lastSeen || null
-                    });
+                        password: data.password,
+                        role: data.role,
+                        displayName: data.displayName,
+                        online: data.online,
+                        lastSeen: data.lastSeen
+                    }));
                 });
                 applyRemoteAccounts(accounts);
                 console.log(`Accounts synced from Firestore snapshot: ${accounts.length} akun.`);
@@ -254,14 +267,7 @@ function saveAccountsLocally(accounts) {
 function applyRemoteAccounts(accounts) {
     if (!Array.isArray(accounts)) return;
     const normalizedAccounts = accounts
-        .map(account => ({
-            username: String(account.username || '').trim(),
-            password: String(account.password || '').trim(),
-            role: account.role || 'staff',
-            displayName: account.displayName || account.username || '',
-            online: Boolean(account.online),
-            lastSeen: account.lastSeen || null
-        }))
+        .map(account => normalizeAccount(account))
         .filter(account => account.username);
 
     saveAccountsLocally(normalizedAccounts);
@@ -274,15 +280,7 @@ function applyRemoteAccounts(accounts) {
 }
 
 async function saveAccounts(accounts, options = { syncToFirebase: true }) {
-    const normalizedAccounts = Array.isArray(accounts) ? accounts.map(account => ({
-        ...account,
-        username: String(account.username || '').trim(),
-        password: String(account.password || '').trim(),
-        role: account.role || 'staff',
-        displayName: account.displayName || account.username || '',
-        online: Boolean(account.online),
-        lastSeen: account.lastSeen || null
-    })).filter(account => account.username) : [];
+    const normalizedAccounts = Array.isArray(accounts) ? accounts.map(account => normalizeAccount(account)).filter(account => account.username) : [];
 
     saveAccountsLocally(normalizedAccounts);
     if (!firebaseEnabled || !options.syncToFirebase) {
@@ -561,7 +559,7 @@ function setLoginMessage(message, type = 'error') {
     element.classList.toggle('text-emerald-600', type === 'success');
 }
 
-function handleLogin(username, password) {
+async function handleLogin(username, password) {
     const accounts = loadAccounts();
     const matched = findAccount(username, accounts);
     const normalizedPassword = String(password || '').trim();
@@ -633,7 +631,7 @@ function setupAuthHandlers() {
                     console.warn('Sinkronisasi sebelum login gagal:', err);
                 }
             }
-            handleLogin(username, password);
+            await handleLogin(username, password);
         });
     }
 
