@@ -1519,7 +1519,7 @@ function renderCashflowSummary(data, type) {
 
     if (lowerType === 'saldo-bank') {
         const headers = data[0].map(h => String(h || '').trim());
-        const totalSaldoKeseluruhanIndex = findHeaderIndex(headers, ['total Saldo Keseluruhan', 'saldo total', 'jumlah saldo', 'saldo']);
+        const totalSaldoIndex = findHeaderIndex(headers, ['total Saldo', 'saldo total', 'jumlah saldo', 'saldo']);
         const bankSaldoIndexes = findHeaderIndexes(headers, ['saldo bank', 'bank saldo', 'bank']);
         const tunaiSaldoIndexes = findHeaderIndexes(headers, ['saldo tunai', 'tunai', 'cash', 'cashflow']);
 
